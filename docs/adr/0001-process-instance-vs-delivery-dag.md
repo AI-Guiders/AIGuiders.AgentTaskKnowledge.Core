@@ -118,6 +118,21 @@ Process card максимум опциональный `safety_ref` (или эк
 
 **Переиспользование:** при появлении второго потребителя (MCP host вне CIDE, Cursor harness) — **вынести механику safety/autonomy в общую библиотеку** и подключать из CIDE + TK host; не форкать правила в markdown-only эвристиках агента.
 
+### D8. Agent-owned status + anti-ticket-pile
+
+Люди **забывают** менять статусы и плохо помнят «делали ли похожее». AFPM не должен опираться на человеческую гигиену доски (классический провал Jira).
+
+| Норма | Смысл |
+|-------|--------|
+| **Agent-owned status** | Кто сделал работу (агент) — тот обновляет task/process в store; человек — verify при сомнении (D7), не санитар кликов |
+| **Done ≈ evidence** | Предпочтительно связывать завершение с evidence (diff, Finding, handoff, criterion), а не с «кнопкой Done» в UI |
+| **Process ≠ tickets** | Шаги метода — process instance; тикет — единица delivery с criterion. Мелкое «посмотрели» → Finding/analytics, не новая task |
+| **Перед cut / новым task** | Поиск похожего: Findings / TK / KB; дубль → ссылка + continue/reopen, не клон карточки |
+| **Узкий луч** | Ориентация = `process_get` + `route_next(epic_id)`, не чтение всего бэклога |
+| **Decay** | Задачи без движения → `parked`/`stale` (suggest при close или hygiene-pass); ворох не обязан быть «зелёным» |
+
+**Не цель:** weekly grooming человеком. **Цель:** агент не тонет в тикетах; store правдив относительно работы, а не относительно памяти оператора.
+
 ---
 
 ## Consequences
@@ -129,6 +144,7 @@ Process card максимум опциональный `safety_ref` (или эк
 - Канон метода в KB; runtime instance в central TK store.
 - Product ADR рядом с кодом Core (как CIDE).
 - Автономия не плодится: AEE SSOT; при необходимости — shared lib.
+- Статусы не зависят от человеческой памяти кликов; меньше ложной «Jira-доски».
 
 ### Negative / trade-offs
 
@@ -136,6 +152,7 @@ Process card максимум опциональный `safety_ref` (или эк
 - Риск «процесс ради процесса», если gates пустые.
 - Пока MCP не отдаёт `step`, дисциплина по карточке + man/playbook.
 - `process_advance` в MCP host без CIDE должен либо no-op safety, либо подключить shared lib — иначе «дырявый» strict.
+- Agent-owned status требует дисциплины агента (и soft checks); иначе store всё равно врёт, только уже от агента.
 
 ---
 
@@ -150,6 +167,8 @@ Process card максимум опциональный `safety_ref` (или эк
 | BPM / auto-advance runner | Ломает партнёрство; overkill. Нужен dig-out read model (D6), не движок. |
 | Только chat handoff без process_get | Handoff хорош, но не API; после compact агент снова не знает step. |
 | Своя autonomy-лестница в TK (`open\|guided\|strict`) | Дубль AEE / `safety.*`; ломает контур B. Ссылка + optional shared lib. |
+| Человек как SSOT статусов (классический трекер) | Забывает кликать; доска врёт; агент тонет в stale tickets. → D8. |
+| Тикет на каждый микрошаг / мысль | Ворох без criterion; дубли «похожее». → Finding + process + search before cut. |
 
 ---
 
@@ -157,9 +176,11 @@ Process card максимум опциональный `safety_ref` (или эк
 
 **Фаза A:** Accept; KB playbook definition; template process card; обновить EnvInvariant (ссылка сюда).  
 **Фаза B:** `processes/*.md` dogfood (`anui-cide-live`).  
-**Фаза C:** MCP `process_get` (resolve task_id|epic_id|id) → step/gate/next_hint; затем `process_advance` + `route_next` meta `processStep`.
+**Фаза C:** MCP `process_get` (resolve task_id|epic_id|id) → step/gate/next_hint; затем `process_advance` + `route_next` meta `processStep`.  
+**Фаза D (D8):** man/trajectory: agent обновляет status; перед cut — finding/TK search; optional parked/stale hygiene (не weekly human grooming).
 
-**Критерий «агенту ок после compact»:** по `task_id` или `epic_id` один MCP-вызов возвращает текущий step без чтения transcript.
+**Критерий «агенту ок после compact»:** по `task_id` или `epic_id` один MCP-вызов возвращает текущий step без чтения transcript.  
+**Критерий anti-pile:** новый task без поиска похожего = anti-pattern; open без criterion = не создавать.
 ---
 
 ## Open questions
