@@ -17,7 +17,7 @@
    - *как* ведём изменение (жизненный цикл / метод с гейтами).
 3. У агента нет персистентного «я» в модели; внешняя память (TK/Findings/CASA) закрывает факты. Но без **режима метода** агент на каждом ходе снова угадывает: «сейчас аналитика или уже код?».
 4. **Не изобретать** span/якоря: CIDE уже канон `AttachmentAnchor` / `CodeAnchor` (cascade-ide ADR 0128 / 0156). TK ссылается, не дублирует словарь координат.
-5. Риск: раздуть TK в Jira + BABOK-suite или смешать шаги процесса с delivery-tasks.
+5. Риск: раздуть TK в Jira + BABOK-suite или смешать шаги процесса с delivery-tasks; люди забывают статусы → stale ticket pile.
 6. **Product ADRs живут в репо продукта** (как CIDE `docs/adr/`), не в agent-notes KB. KB — EnvInvariant/playbook среды; этот ADR — решение Core/MCP.
 
 ---
@@ -65,6 +65,8 @@ Layout: `{store}/processes/{id}.md` рядом с `tasks/`, `analytics/`, `epics
 | `close` | Handoff / checkpoint | handoff или epic done | instance status=done |
 
 Шаги **не** являются узлами delivery DAG. Переход шага — отдельное действие (`process_advance` / upsert section), не `task_upsert status=done`.
+
+Колонка «Gate» в таблице выше — черновик **Q** (post) / входа в следующий step; полная грамматика шага — **D9** (`{P} S {Q}`).
 
 ### D4. Поведение агента / MCP (направление, не обязательно в 0.3.x)
 
@@ -133,6 +135,34 @@ Process card максимум опциональный `safety_ref` (или эк
 
 **Не цель:** weekly grooming человеком. **Цель:** агент не тонет в тикетах; store правдив относительно работы, а не относительно памяти оператора.
 
+### D9. DoR / DoD = тройка Хоара на шаге PD
+
+В **process definition** (KB) каждый `step_id` — не «статус + чеклист ради чеклиста», а:
+
+```text
+{ P }  S  { Q }
+pre:   …   # P = DoR шага (что должно быть правдой до)
+do:    …   # S = цель шага / типичные tools
+post:  …   # Q = DoD шага (что должно быть правдой после)
+```
+
+| | Метод (PD step) | Delivery (task) |
+|--|-----------------|-----------------|
+| **P / DoR** | можно входить в step / advance сюда | task ready: criterion ясен, blockers clear, analytics |
+| **S** | работа на шаге | работа агента по task |
+| **Q / DoD** | можно уходить со step | evidence + criterion_met; код → AEE где нужно (D7) |
+
+**Instance** хранит `step` (+ факты/evidence); **P/Q не копировать** целиком в TK — читать из `process_def_id` (как AEE: ссылка, не дубль).
+
+**Enforcement (закрывает open 2 и 5):**
+
+- По умолчанию **soft**: `process_advance` проходит с `warnings`, если P/Q не закрыты.
+- **Hard** — точечно: `close` / опасные defs через AEE/`safety` (D7); не корпоративный 15-пунктовый DoR.
+- Findings на `bind`→`execute`: пункт **P** для `execute` (или soft hint), не отдельная сущность и не hard по умолчанию (D8: мелкое → Finding, не тикет).
+- Formal verification Хоара не требуется — нужна **общая грамматика** для агента после compact.
+
+`process_get` может отдавать краткие `pre`/`post` текущего step из def (опционально в фазе C+).
+
 ---
 
 ## Consequences
@@ -145,14 +175,16 @@ Process card максимум опциональный `safety_ref` (или эк
 - Product ADR рядом с кодом Core (как CIDE).
 - Автономия не плодится: AEE SSOT; при необходимости — shared lib.
 - Статусы не зависят от человеческой памяти кликов; меньше ложной «Jira-доски».
+- DoR/DoD как `{P} S {Q}` — короткая machine-oriented грамматика шага, не ceremony.
 
 ### Negative / trade-offs
 
 - Ещё один тип карточки и (позже) MCP surface.
-- Риск «процесс ради процесса», если gates пустые.
+- Риск «процесс ради процесса», если gates / P/Q пустые.
 - Пока MCP не отдаёт `step`, дисциплина по карточке + man/playbook.
 - `process_advance` в MCP host без CIDE должен либо no-op safety, либо подключить shared lib — иначе «дырявый» strict.
 - Agent-owned status требует дисциплины агента (и soft checks); иначе store всё равно врёт, только уже от агента.
+- Soft-by-default можно «проскочить» пустой Q — нужна культура evidence (D8), не только warnings.
 
 ---
 
@@ -169,6 +201,8 @@ Process card максимум опциональный `safety_ref` (или эк
 | Своя autonomy-лестница в TK (`open\|guided\|strict`) | Дубль AEE / `safety.*`; ломает контур B. Ссылка + optional shared lib. |
 | Человек как SSOT статусов (классический трекер) | Забывает кликать; доска врёт; агент тонет в stale tickets. → D8. |
 | Тикет на каждый микрошаг / мысль | Ворох без criterion; дубли «похожее». → Finding + process + search before cut. |
+| Длинный корпоративный DoR/DoD как отдельный продукт | Ceremony; человек всё равно не кликает. → D9: коротко в PD как P/Q; soft default. |
+| Формальная верификация Хоара в MCP | Overkill. Нужна грамматика и soft/hard enforcement, не proof checker. |
 
 ---
 
