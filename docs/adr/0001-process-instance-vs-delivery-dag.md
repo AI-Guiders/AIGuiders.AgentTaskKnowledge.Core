@@ -68,9 +68,9 @@ Layout: `{store}/processes/{id}.md` рядом с `tasks/`, `analytics/`, `epics
 
 ### D4. Поведение агента / MCP (направление, не обязательно в 0.3.x)
 
-1. Перед работой по epic: `ensure_store` → прочитать **process instance** (или создать на `intake`/`analyze`).
+1. Перед работой по epic: `ensure_store` → **`process_get`** (см. D6) → понять step/gate.
 2. `route_next(epic_id=…)` остаётся про **tasks**; ответ/trajectory **учитывает** текущий `step`.
-3. Tools (фаза 2): `process_upsert` / `process_advance` / `step` в JSON `meta` у `route_next`.
+3. Tools: `process_get` (обязательный dig-out после compact), `process_upsert` / `process_advance`; `step` в JSON `meta` у `route_next`.
 4. Definition — KB (`read_knowledge_file`); TK — только `process_def_id` + runtime state.
 
 ### D5. Границы
@@ -79,6 +79,29 @@ Layout: `{store}/processes/{id}.md` рядом с `tasks/`, `analytics/`, `epics
 - **Не** `project_id` как граница store/DAG.
 - **Не** новый формат span; bind → CIDE anchors.
 - Process definition меняется редко (KB); instance — часто (TK).
+- **Не** BPM/Temporal runner: нет автоисполнения фичи; только ориентация + optional soft/hard gate.
+
+### D6. Dig-out после summarization: `process_get` (harness trajectory)
+
+Главный UX для агента после compact / смены треда / «где мы?»:
+
+```text
+process_get(workspace_path, task_id? | epic_id? | process_instance_id?)
+  → {
+      process_instance_id, epic_id, process_def_id,
+      step, gate, status, next_hint,
+      # optional: allowed_tools / forbidden_actions for this step
+    }
+```
+
+**Resolve:**
+- `process_instance_id` → карточка напрямую;
+- `epic_id` → instance с этим epic (1:1 по D2);
+- `task_id` → task card → `epic_id` → instance («get_task_process»).
+
+Агент: *«ага, step=execute, gate=…, next_hint=route_next»* — без перечитывания всего чата.
+
+Host harness (Cursor/CIDE) может вызывать тот же контракт на старте хода; это **не** workflow engine, а **read model режима метода**.
 
 ---
 
@@ -87,6 +110,7 @@ Layout: `{store}/processes/{id}.md` рядом с `tasks/`, `analytics/`, `epics
 ### Positive
 
 - Агент получает **режим метода**, не только список tasks.
+- После summarization: один вызов `process_get` / get_task_process → step без восстановления всего диалога.
 - Канон метода в KB; runtime instance в central TK store.
 - Product ADR рядом с кодом Core (как CIDE).
 
@@ -106,7 +130,8 @@ Layout: `{store}/processes/{id}.md` рядом с `tasks/`, `analytics/`, `epics
 | Шаги процесса = обычные tasks | Смешивает method и delivery. |
 | Process целиком в CASA | Другой контур; TK = workflow store. |
 | ADR только в agent-notes KB | Путает product decision с KB-статикой; см. размещение этого файла. |
-| Новый span-hash в TK | Уже есть AttachmentAnchor (0128). |
+| BPM / auto-advance runner | Ломает партнёрство; overkill. Нужен dig-out read model (D6), не движок. |
+| Только chat handoff без process_get | Handoff хорош, но не API; после compact агент снова не знает step. |
 
 ---
 
