@@ -1,0 +1,13 @@
+# Embedded fallback: neutral placeholders only.
+# Working paths — in your --config TOML ([workspace], [task_knowledge]).
+version = 1
+
+[workspace]
+default_scope = "example"
+scope_map = "example/workspace-scope-map-v1.md"
+scope_aliases = "example/scope-alias-map-v1.md"
+
+[workspace.store]
+dir_name = ".task-knowledge"
+mode = "scope_subdir"
+scope_subdir = "scopes"
