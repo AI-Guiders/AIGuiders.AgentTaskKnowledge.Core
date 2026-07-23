@@ -23,6 +23,12 @@ public static partial class TaskCardParser
     [GeneratedRegex(@"^\s*-\s*criterion:\s*`?(?<v>[^`\r\n]+)`?\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex CriterionLine();
 
+    [GeneratedRegex(@"^\s*-\s*to_be:\s*`?(?<v>[^`\r\n]+)`?\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex ToBeLine();
+
+    [GeneratedRegex(@"^\s*-\s*as_is:\s*`?(?<v>[^`\r\n]+)`?\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex AsIsLine();
+
     [GeneratedRegex(@"^\s*-\s*blocked_by:\s*(?<v>.+)\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex BlockedByLine();
 
@@ -43,6 +49,8 @@ public static partial class TaskCardParser
         var part = MatchOne(PartLine(), body);
         var epic = MatchOne(EpicLine(), body);
         var criterion = MatchOne(CriterionLine(), substance) ?? MatchOne(CriterionLine(), body);
+        var toBe = MatchOne(ToBeLine(), substance) ?? MatchOne(ToBeLine(), body);
+        var asIs = MatchOne(AsIsLine(), substance) ?? MatchOne(AsIsLine(), body);
         var blocked = ParseList(MatchOne(BlockedByLine(), body));
         var unlocks = ParseList(MatchOne(UnlocksLine(), body));
 
@@ -55,7 +63,9 @@ public static partial class TaskCardParser
             BlockedBy: blocked,
             Unlocks: unlocks,
             Path: path,
-            Criterion: criterion?.Trim().Trim('`'));
+            Criterion: criterion?.Trim().Trim('`'),
+            ToBe: toBe?.Trim().Trim('`'),
+            AsIs: asIs?.Trim().Trim('`'));
     }
 
     private static string? MatchOne(Regex re, string text)

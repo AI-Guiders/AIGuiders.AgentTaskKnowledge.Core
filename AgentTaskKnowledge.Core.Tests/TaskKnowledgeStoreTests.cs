@@ -29,7 +29,11 @@ public sealed class TaskKnowledgeStoreTests
 
             var next = store.RouteNext(root, query: null, limit: 5);
             Assert.Contains(next, t => t.TaskId == "B");
-            Assert.Equal("ready", next.First(t => t.TaskId == "B").Status);
+            var b = next.First(t => t.TaskId == "B");
+            Assert.Equal("ready", b.Status);
+            Assert.Equal("done B", b.ToBe);
+            Assert.Equal("file B exists", b.Criterion);
+            Assert.Equal("blocked", b.AsIs);
 
             var focused = store.RouteNext(root, query: null, limit: 5, epicId: "e1");
             Assert.Contains(focused, t => t.TaskId == "B");

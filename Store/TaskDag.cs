@@ -125,7 +125,7 @@ public sealed class TaskDag
 
     private static int Score(TaskCardSummary t, HashSet<string> tokens)
     {
-        var hay = $"{t.TaskId} {t.Title} {t.Part} {t.Criterion}".ToLowerInvariant();
+        var hay = $"{t.TaskId} {t.Title} {t.Part} {t.Criterion} {t.ToBe} {t.AsIs}".ToLowerInvariant();
         var score = 0;
         foreach (var tok in tokens)
         {
